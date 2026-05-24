@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0, minimum-scale=0.5">
+  <title>Галерея</title>
+  <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .viewer {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0a;
+    }
+
+    #mainImage {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: opacity 0.4s ease;
+      opacity: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #mainImage.loaded {
+      opacity: 1;
+    }
+
+    .nav-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      background: rgba(20, 20, 30, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      line-height: 1;
+      padding-bottom: 2px;
+    }
+
+    .nav-btn:hover {
+      background: rgba(50, 50, 70, 0.8);
+      border-color: rgba(255,255,255,0.5);
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    #prevBtn { left: 16px; }
+    #nextBtn { right: 16px; }
+
+    .info-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 30;
+      width: 360px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 32px);
+      background: rgba(18, 18, 24, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #eee;
+      transform: translateX(0);
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .info-panel.collapsed {
+      transform: translateX(calc(100% + 40px));
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .panel-header {
+      padding: 16px 18px 8px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #aaa;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .close-panel-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 22px;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.2s;
+      line-height: 1;
+    }
+
+    .close-panel-btn:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    .panel-content {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .thumb-list {
+      width: 85px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 8px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.3) transparent;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .thumb-item {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      background: #1a1a1a;
+      margin: 0 auto;
+    }
+
+    .thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb-item.active {
+      border-color: #ffb347;
+      box-shadow: 0 0 12px rgba(255, 179, 71, 0.5);
+      transform: scale(1.02);
+    }
+
+    .meta-column {
+      flex: 1;
+      padding: 12px 14px;
+      overflow-y: auto;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px dashed rgba(255,255,255,0.1);
+      padding-bottom: 4px;
+    }
+
+    .meta-label {
+      color: #aaa;
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .meta-value {
+      color: #f0f0f0;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .no-exif {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .show-panel-btn {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 31;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(18, 18, 24, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+      font-size: 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      transition: 0.2s;
+    }
+
+    .show-panel-btn.visible {
+      display: flex;
+    }
+
+    .context-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      pointer-events: none;
+      background: rgba(0,0,0,0.5);
+      padding: 6px 16px;
+      border-radius: 20px;
+      backdrop-filter: blur(5px);
+    }
+
+    @media (max-width: 768px) {
+      .info-panel {
+        top: auto;
+        bottom: 16px;
+        right: 16px;
+        width: calc(100vw - 32px);
+        max-height: 45vh;
+        border-radius: 28px 28px 20px 20px;
+        flex-direction: column-reverse;
+      }
+
+      .panel-content {
+        flex-direction: column-reverse;
+      }
+
+      .thumb-list {
+        flex-direction: row;
+        width: 100%;
+        height: 85px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 8px 8px;
+        gap: 8px;
+        border-right: none;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .thumb-item {
+        width: 68px;
+        height: 68px;
+      }
+
+      .meta-column {
+        max-height: 180px;
+        min-height: 120px;
+      }
+
+      .nav-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 28px;
+      }
+
+      #prevBtn { left: 8px; }
+      #nextBtn { right: 8px; }
+
+      .info-panel.collapsed {
+        transform: translateY(calc(100% + 40px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <input type="file" id="folderInput" webkitdirectory multiple style="display:none" accept="image/*">
+
+  <div class="viewer">
+    <img id="mainImage" src="" alt="Изображение" class="loaded">
+  </div>
+
+  <button class="nav-btn" id="prevBtn">‹</button>
+  <button class="nav-btn" id="nextBtn">›</button>
+
+  <button class="show-panel-btn" id="showPanelBtn" aria-label="Показать панель">☰</button>
+
+  <div class="info-panel" id="infoPanel">
+    <div class="panel-header">
+      <span>Галерея</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="imageCounter">0 / 0</span>
+        <button class="close-panel-btn" id="closePanelBtn" aria-label="Скрыть панель">✕</button>
+      </div>
+    </div>
+    <div class="panel-content">
+      <div class="thumb-list" id="thumbList"></div>
+      <div class="meta-column" id="metaContent">
+        <div class="no-exif">Загрузите изображения</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="context-hint" id="contextHint">ПКМ для выбора папки • Перетащите файлы</div>
+
+  <script>
+    (function() {
+      const PHOTO_DIR = './images/';   
+      const FILE_LIST = [
+        'IMG_2336-2.png',
+        'IMG_2372.png',
+        'IMG_2376.png',
+        'IMG_2382.png',
+        'IMG_2389.png',
+        'IMG_2396.png',
+        'IMG_2397.png',
+        'IMG_2405.png',
+        'IMG_2410.png',
+        'IMG_2502png.PNG',
+        'IMG_2503png.PNG',
+        'IMG_2533png.PNG',
+        'IMG_2534png.PNG',
+        'IMG_2536png.PNG',
+        'IMG_2537png.PNG',
+        'IMG_2540png.PNG',
+        'IMG_2548png.PNG',
+        'IMG_2549png_1.PNG',
+        'IMG_2663jpg.JPG',
+        'IMG_2743jpg.JPG',
+        ''
+      ];
+
+      const mainImage = document.getElementById('mainImage');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const thumbList = document.getElementById('thumbList');
+      const metaContent = document.getElementById('metaContent');
+      const imageCounter = document.getElementById('imageCounter');
+      const infoPanel = document.getElementById('infoPanel');
+      const closePanelBtn = document.getElementById('closePanelBtn');
+      const showPanelBtn = document.getElementById('showPanelBtn');
+      const folderInput = document.getElementById('folderInput');
+      const contextHint = document.getElementById('contextHint');
+
+      let images = [];
+      let currentIndex = -1;
+
+      function collapsePanel() {
+        infoPanel.classList.add('collapsed');
+        showPanelBtn.classList.add('visible');
+      }
+
+      function expandPanel() {
+        infoPanel.classList.remove('collapsed');
+        showPanelBtn.classList.remove('visible');
+      }
+
+      closePanelBtn.addEventListener('click', collapsePanel);
+      showPanelBtn.addEventListener('click', expandPanel);
+
+      async function loadFromConstantList() {
+        const files = [];
+        for (const name of FILE_LIST) {
+          const url = PHOTO_DIR + name;
+          try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Not found');
+            const blob = await response.blob();
+            const file = new File([blob], name, { type: blob.type || 'image/jpeg' });
+            files.push(file);
+          } catch (e) {
+            console.warn(`Файл ${url} не найден`, e);
+          }
+        }
+        if (files.length > 0) {
+          handleFiles(files);
+        } else {
+          metaContent.innerHTML = '<div class="no-exif">Нет изображений в папке. Проверьте PHOTO_DIR и FILE_LIST</div>';
+        }
+      }
+
+      function handleFiles(fileList) {
+        resetGallery();
+        const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+        if (files.length === 0) {
+          metaContent.innerHTML = '<div class="no-exif">Нет изображений</div>';
+          return;
+        }
+
+        files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+
+        images = files.map(file => ({
+          file,
+          url: URL.createObjectURL(file),
+          name: file.name,
+          width: null,
+          height: null,
+          size: file.size,
+          exif: null,
+        }));
+
+        let pending = images.length;
+        images.forEach((imgData, idx) => {
+          const img = new Image();
+          img.onload = function() {
+            imgData.width = this.naturalWidth;
+            imgData.height = this.naturalHeight;
+            if (window.EXIF) {
+              EXIF.getData(this, function() {
+                imgData.exif = EXIF.getAllTags(this);
+                pending--;
+                if (pending === 0) onAllLoaded();
+              });
+            } else {
+              imgData.exif = null;
+              pending--;
+              if (pending === 0) onAllLoaded();
+            }
+          };
+          img.onerror = () => {
+            imgData.width = 0;
+            imgData.height = 0;
+            pending--;
+            if (pending === 0) onAllLoaded();
+          };
+          img.src = imgData.url;
+        });
+
+        function onAllLoaded() {
+          if (images.length > 0) {
+            currentIndex = 0;
+            showImage(0);
+            renderThumbnails();
+          }
+        }
+      }
+
+      function resetGallery() {
+        images.forEach(img => { if (img.url) URL.revokeObjectURL(img.url); });
+        images = [];
+        currentIndex = -1;
+        mainImage.src = '';
+        mainImage.classList.add('loaded');
+        renderThumbnails();
+        updateMetaDisplay();
+        imageCounter.textContent = '0 / 0';
+      }
+
+      function showImage(index) {
+        if (index < 0 || index >= images.length) return;
+        currentIndex = index;
+        const imgData = images[index];
+        mainImage.classList.remove('loaded');
+        mainImage.src = imgData.url;
+        const temp = new Image();
+        temp.onload = () => mainImage.classList.add('loaded');
+        temp.src = imgData.url;
+        setTimeout(() => {
+          if (mainImage.complete && mainImage.naturalWidth > 0) mainImage.classList.add('loaded');
+        }, 50);
+
+        updateMetaDisplay();
+        updateThumbActive();
+        imageCounter.textContent = `${index+1} / ${images.length}`;
+        const items = document.querySelectorAll('.thumb-item');
+        if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+
+      function renderThumbnails() {
+        thumbList.innerHTML = '';
+        images.forEach((img, idx) => {
+          const div = document.createElement('div');
+          div.className = 'thumb-item' + (idx === currentIndex ? ' active' : '');
+          const thumb = document.createElement('img');
+          thumb.src = img.url;
+          thumb.alt = img.name;
+          thumb.loading = 'lazy';
+          div.appendChild(thumb);
+          div.addEventListener('click', () => showImage(idx));
+          thumbList.appendChild(div);
+        });
+      }
+
+      function updateThumbActive() {
+        document.querySelectorAll('.thumb-item').forEach((el, i) => {
+          el.classList.toggle('active', i === currentIndex);
+        });
+      }
+
+      function updateMetaDisplay() {
+        if (currentIndex < 0 || images.length === 0) {
+          metaContent.innerHTML = '<div class="no-exif">Нет данных</div>';
+          return;
+        }
+        const d = images[currentIndex];
+        const exif = d.exif;
+        const fmtSize = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB';
+        let html = '';
+        html += `<div class="meta-row"><span class="meta-label">Имя</span><span class="meta-value">${d.name}</span></div>`;
+        html += `<div class="meta-row"><span class="meta-label">Размер</span><span class="meta-value">${fmtSize(d.size)}</span></div>`;
+        if (d.width && d.height) html += `<div class="meta-row"><span class="meta-label">Разрешение</span><span class="meta-value">${d.width}×${d.height}</span></div>`;
+        if (exif) {
+          if (exif.DateTime || exif.DateTimeOriginal) html += `<div class="meta-row"><span class="meta-label">Дата</span><span class="meta-value">${exif.DateTime || exif.DateTimeOriginal}</span></div>`;
+          if (exif.Make || exif.Model) html += `<div class="meta-row"><span class="meta-label">Камера</span><span class="meta-value">${[exif.Make, exif.Model].filter(Boolean).join(' ')}</span></div>`;
+          if (exif.FocalLength) html += `<div class="meta-row"><span class="meta-label">Фокусное</span><span class="meta-value">${exif.FocalLength} мм</span></div>`;
+          if (exif.FNumber) html += `<div class="meta-row"><span class="meta-label">Диафрагма</span><span class="meta-value">f/${exif.FNumber}</span></div>`;
+          if (exif.ExposureTime) html += `<div class="meta-row"><span class="meta-label">Выдержка</span><span class="meta-value">${exif.ExposureTime} с</span></div>`;
+          if (exif.ISOSpeedRatings) html += `<div class="meta-row"><span class="meta-label">ISO</span><span class="meta-value">${exif.ISOSpeedRatings}</span></div>`;
+        } else {
+          html += '<div class="meta-row"><span class="meta-label">EXIF</span><span class="meta-value" style="color:#888">недоступен</span></div>';
+        }
+        metaContent.innerHTML = html;
+      }
+
+      function nextImage() { if (images.length) showImage((currentIndex+1)%images.length); }
+      function prevImage() { if (images.length) showImage((currentIndex-1+images.length)%images.length); }
+
+      prevBtn.addEventListener('click', prevImage);
+      nextBtn.addEventListener('click', nextImage);
+      document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); prevImage(); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); nextImage(); }
+      });
+
+      let touchStartX = 0;
+      document.querySelector('.viewer').addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, {passive: true});
+      document.querySelector('.viewer').addEventListener('touchend', e => {
+        const delta = e.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(delta) > 50) delta > 0 ? prevImage() : nextImage();
+      });
+
+      document.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        folderInput.click();
+      });
+      folderInput.addEventListener('change', e => {
+        if (e.target.files.length) handleFiles(e.target.files);
+      });
+
+      document.addEventListener('dragover', e => e.preventDefault());
+      document.addEventListener('drop', e => {
+        e.preventDefault();
+        if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+      });
+
+      loadFromConstantList();
+    })();
+  </script>
+</body>
+</html>
