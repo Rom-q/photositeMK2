@@ -179,7 +179,6 @@
             cursor: default;
         }
         .current-indicator.hidden-default { opacity: 0; }
-        /* .current-indicator.hidden-default:hover { opacity: 1; background: rgba(30,30,40,0.8); } */
         .current-indicator:not(.hidden-default):hover { background: rgba(30,30,40,0.8); }
 
         @media (max-width: 768px) {
@@ -233,13 +232,20 @@
 
     <script>
         (function() {
+            
             const BASE_PATH = (() => {
                 const scripts = document.getElementsByTagName('script');
                 const myScript = scripts[scripts.length - 1];
                 const src = myScript.src;
-                if (src) return src.substring(0, src.lastIndexOf('/')) + '/';
+                if (src) {
+                    const path = src.substring(0, src.lastIndexOf('/')) + '/';
+                    console.log('[Gallery] BASE_PATH определён через script src:', path);
+                    return path;
+                }
                 const path = window.location.pathname;
-                return path.substring(0, path.lastIndexOf('/')) + '/';
+                const fallback = path.substring(0, path.lastIndexOf('/')) + '/';
+                console.log('[Gallery] BASE_PATH определён через location.pathname:', fallback);
+                return fallback;
             })();
 
             const PHOTO_DIR = BASE_PATH + 'images/';
@@ -251,6 +257,7 @@
                 'IMG_2534png.PNG', 'IMG_2536png.PNG', 'IMG_2537png.PNG', 'IMG_2540png.PNG',
                 'IMG_2548png.PNG', 'IMG_2549png_1.PNG', 'IMG_2663jpg.JPG', 'IMG_2743jpg.JPG'
             ];
+            // console.log('[Gallery] Список файлов:', FILE_LIST);
 
             const mainImage = document.getElementById('mainImage');
             const prevBtn = document.getElementById('prevBtn');
@@ -289,9 +296,15 @@
             let startIndex = -1;
             if (startImg) {
                 const foundIndex = FILE_LIST.findIndex(name => name === startImg);
-                if (foundIndex !== -1) startIndex = foundIndex;
+                if (foundIndex !== -1) {
+                    startIndex = foundIndex;
+                    // console.log('[Gallery] Запрошено начальное изображение:', startImg, 'индекс:', startIndex);
+                } else {
+                    // console.warn('[Gallery] Изображение не найдено в списке:', startImg);
+                }
             }
             currentIndex = startIndex;
+            // console.log('[Gallery] Текущий индекс:', currentIndex);
 
             function collapsePanel() {
                 infoPanel.classList.add('collapsed');
@@ -316,7 +329,9 @@
                 }
             });
             openFullBtn.addEventListener('click', () => {
-                if (currentIndex < 0 || !imagesMeta[currentIndex]?.loaded) return;
+                if (currentIndex < 0 || !imagesMeta[currentIndex]?.loaded) {
+                    return;
+                }
                 const img = imagesMeta[currentIndex];
                 window.open(BASE_PATH + 'photo.html?img=' + encodeURIComponent(img.name), '_self', 'noopener');
             });
@@ -346,6 +361,7 @@
             }
 
             function renderThumbnails() {
+                console.log('[Gallery] Рендер миниатюр');
                 thumbList.innerHTML = '';
                 imagesMeta.forEach((meta, idx) => {
                     const div = document.createElement('div');
@@ -372,6 +388,7 @@
 
             async function loadSingleFile(index) {
                 const name = FILE_LIST[index];
+                console.log(`[Gallery] Начало загрузки файла ${index}: ${name}`);
                 const fullUrl = PHOTO_DIR + name;
                 const thumbUrl = THUMB_DIR + name.replace(/\.[^.]+$/, '') + '_thumb.jpg';
                 let size = null;
@@ -383,15 +400,20 @@
                         const blob = await response.blob();
                         size = blob.size;
                         blobUrl = URL.createObjectURL(blob);
+                        console.log(`[Gallery] Файл ${name} загружен, размер: ${size} байт`);
+                    } else {
+                        console.warn(`[Gallery] fetch вернул статус ${response.status} для ${name}`);
                     }
                 } catch (e) {
-                    console.warn(`fetch не удался для ${name}`);
+                    console.warn(`[Gallery] fetch не удался для ${name}`, e);
                 }
 
                 const img = new Image();
                 img.src = blobUrl;
                 await new Promise((resolve, reject) => {
-                    img.onload = resolve;
+                    img.onload = () => {
+                        resolve();
+                    };
                     img.onerror = () => reject(new Error(`Не удалось загрузить ${name}`));
                 });
 
@@ -403,7 +425,9 @@
                         testImg.onerror = reject;
                         testImg.src = thumbUrl;
                     });
+                    console.log(`[Gallery] Миниатюра для ${name} найдена по пути ${thumbUrl}`);
                 } catch (e) {
+                    console.log(`[Gallery] Миниатюра отсутствует, создаём из оригинала для ${name}`);
                     const canvas = document.createElement('canvas');
                     const size = 72;
                     canvas.width = size; canvas.height = size;
@@ -437,6 +461,7 @@
                 renderThumbnails();
 
                 if (currentIndex === index && imagesMeta[index].loaded) {
+                    console.log(`[Gallery] Текущее изображение ${index} загружено, показываем`);
                     showImage(index);
                 }
                 if (currentIndex === -1 && loadedCount === 1) {
@@ -446,6 +471,7 @@
             }
 
             async function loadAllSequentially() {
+                console.log('[Gallery] Начинаем последовательную загрузку всех изображений');
                 const order = [];
                 if (startIndex >= 0) {
                     order.push(startIndex);
@@ -458,7 +484,7 @@
                     try {
                         await loadSingleFile(i);
                     } catch (e) {
-                        console.error(e);
+                        console.error(`[Gallery] Ошибка при загрузке файла ${i}:`, e);
                         loadedCount++;
                         updateLoadingIndicator();
                     }
@@ -468,21 +494,61 @@
                 if (currentIndex >= 0) {
                     imageCounter.textContent = `${currentIndex+1} / ${totalCount}`;
                 }
+                console.log('[Gallery] Загрузка всех изображений завершена');
             }
 
+            // function showImage(index) {
+            //     if (index < 0 || index >= imagesMeta.length) {
+            //         console.warn('[Gallery] Некорректный индекс:', index);
+            //         return;
+            //     }
+            //     const meta = imagesMeta[index];
+            //     if (!meta.loaded) {
+            //         return;
+            //     }
+            //     currentIndex = index;
+            //     mainImage.classList.remove('loaded');
+            //     mainImage.src = meta.thumbUrl;
+            //     console.log(`[Gallery] Показана миниатюра для ${meta.name}`);
+            //     const fullImg = new Image();
+            //     fullImg.onload = () => {
+            //         console.log(`[Gallery] Полноразмерное изображение ${meta.name} загружено и отображается`);
+            //         mainImage.src = meta.fullUrl;
+            //         mainImage.classList.add('loaded');
+            //     };
+            //     fullImg.src = meta.fullUrl;
+            //     updateThumbActive();
+            //     imageCounter.textContent = `${index + 1} / ${totalCount}`;
+            //     updateCurrentIndicator();
+
+            //     const items = document.querySelectorAll('.thumb-item');
+            //     if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+            //     const newUrl = window.location.pathname + '?img=' + encodeURIComponent(meta.name);
+            //     history.replaceState(null, '', newUrl);
+            // }
+            
             function showImage(index) {
-                if (index < 0 || index >= imagesMeta.length) return;
+                if (index < 0 || index >= imagesMeta.length) {
+                    console.warn('[Gallery] Некорректный индекс:', index);
+                    return;
+                }
                 const meta = imagesMeta[index];
-                if (!meta.loaded) return;
+                if (!meta.loaded) {
+                    return;
+                }
                 currentIndex = index;
-                mainImage.classList.remove('loaded');
-                mainImage.src = meta.thumbUrl;
+
                 const fullImg = new Image();
                 fullImg.onload = () => {
                     mainImage.src = meta.fullUrl;
-                    mainImage.classList.add('loaded');
+                    if (!mainImage.classList.contains('loaded')) {
+                        mainImage.classList.add('loaded');
+                    }
+                    console.log(`[Gallery] Полноразмерное изображение ${meta.name} отображено`);
                 };
                 fullImg.src = meta.fullUrl;
+
                 updateThumbActive();
                 imageCounter.textContent = `${index + 1} / ${totalCount}`;
                 updateCurrentIndicator();
@@ -508,6 +574,7 @@
                     nextIdx = (nextIdx + 1) % totalCount;
                 }
                 if (imagesMeta[nextIdx]?.loaded) showImage(nextIdx);
+                // else console.warn('[Gallery] Нет загруженного следующего изображения');
             }
             function prevImage() {
                 if (totalCount === 0) return;
@@ -517,13 +584,21 @@
                     prevIdx = (prevIdx - 1 + totalCount) % totalCount;
                 }
                 if (imagesMeta[prevIdx]?.loaded) showImage(prevIdx);
+                // else console.warn('[Gallery] Нет загруженного предыдущего изображения');
             }
 
             prevBtn.addEventListener('click', prevImage);
             nextBtn.addEventListener('click', nextImage);
             document.addEventListener('keydown', e => {
-                if (e.key === 'ArrowLeft') { e.preventDefault(); prevImage(); }
-                if (e.key === 'ArrowRight') { e.preventDefault(); nextImage(); }
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    prevImage();
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+
+                    nextImage();
+                }
             });
 
             // let touchStartX = 0;
@@ -543,10 +618,10 @@
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register(BASE_PATH + 'sw.js')
                     .then(registration => {
-                        console.log('Service Worker зарегистрирован:', registration.scope);
+                        console.log('[Gallery] Service Worker зарегистрирован:', registration.scope);
                     })
                     .catch(error => {
-                        console.error('Ошибка регистрации Service Worker:', error);
+                        console.error('[Gallery] Ошибка регистрации Service Worker:', error);
                     });
                 });
             }

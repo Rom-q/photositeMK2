@@ -3,8 +3,8 @@ from PIL import Image
 
 INPUT_DIR = "images"   
 OUTPUT_DIR = "thumbnails"       
-THUMB_SIZE = (1920, 1080)         
-QUALITY = 100                    
+THUMB_SIZE = (300, 300)         
+QUALITY = 75                    
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
