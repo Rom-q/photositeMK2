@@ -142,17 +142,25 @@
         .open-full-btn.hidden-default:hover { opacity: 1; background: rgba(40,40,55,0.8); }
         .open-full-btn:not(.hidden-default):hover { background: rgba(40,40,55,0.8); }
 
-        .loading-indicator {
+        .top-indicators {
             position: fixed; top: 16px; right: 70px;
             z-index: 35;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .top-indicators > * {
+            pointer-events: auto;
+        }
+        .loading-indicator {
             background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
             border-radius: 20px; padding: 6px 14px;
             color: #ccc; font-size: 13px;
             display: flex; align-items: center; gap: 8px;
             transition: opacity 0.3s;
-            pointer-events: none;
         }
-        .loading-indicator.hidden { opacity: 0; }
+        .loading-indicator.hidden { opacity: 0; pointer-events: none; }
         .spinner {
             width: 16px; height: 16px;
             border: 2px solid rgba(255,255,255,0.3);
@@ -161,6 +169,18 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .current-indicator {
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            border-radius: 20px; padding: 6px 14px;
+            color: #ccc; font-size: 13px;
+            white-space: nowrap;
+            transition: opacity 0.3s ease, background 0.2s;
+            cursor: default;
+        }
+        .current-indicator.hidden-default { opacity: 0; }
+        /* .current-indicator.hidden-default:hover { opacity: 1; background: rgba(30,30,40,0.8); } */
+        .current-indicator:not(.hidden-default):hover { background: rgba(30,30,40,0.8); }
 
         @media (max-width: 768px) {
             .info-panel {
@@ -180,7 +200,10 @@
             .info-panel.collapsed { transform: translateY(calc(100% + 40px)); }
             .show-panel-btn { top: auto; bottom: 16px; right: 16px; }
             .open-full-btn { left: 12px; bottom: 12px; width: 38px; height: 38px; font-size: 18px; }
-            .loading-indicator { top: auto; bottom: 70px; right: 16px; }
+            .top-indicators {
+                top: auto; bottom: 70px; right: 16px;
+                flex-direction: row;
+            }
         }
     </style>
 </head>
@@ -200,9 +223,12 @@
     </div>
     <button id="openFullBtn" class="open-full-btn" title="Открыть оригинал (полноразмерное изображение)">↗</button>
 
-    <div id="loadingIndicator" class="loading-indicator">
-        <div class="spinner"></div>
-        <span id="loadingText">0 / 20</span>
+    <div class="top-indicators">
+        <div id="currentIndicator" class="current-indicator">0 / 20</div>
+        <div id="loadingIndicator" class="loading-indicator">
+            <div class="spinner"></div>
+            <span id="loadingText">0 / 20</span>
+        </div>
     </div>
 
     <script>
@@ -237,11 +263,12 @@
             const openFullBtn = document.getElementById('openFullBtn');
             const loadingIndicator = document.getElementById('loadingIndicator');
             const loadingText = document.getElementById('loadingText');
+            const currentIndicator = document.getElementById('currentIndicator');
 
-            let images = [];
             let imagesMeta = [];
             let currentIndex = -1;
             let fullBtnFirstLeave = false;
+            let currentIndicatorFirstLeave = false;
             let totalCount = FILE_LIST.length;
             let loadedCount = 0;
 
@@ -256,6 +283,15 @@
                     height: null
                 };
             });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const startImg = urlParams.get('img');
+            let startIndex = -1;
+            if (startImg) {
+                const foundIndex = FILE_LIST.findIndex(name => name === startImg);
+                if (foundIndex !== -1) startIndex = foundIndex;
+            }
+            currentIndex = startIndex;
 
             function collapsePanel() {
                 infoPanel.classList.add('collapsed');
@@ -282,7 +318,14 @@
             openFullBtn.addEventListener('click', () => {
                 if (currentIndex < 0 || !imagesMeta[currentIndex]?.loaded) return;
                 const img = imagesMeta[currentIndex];
-                window.open(BASE_PATH + 'photo.html?img=' + encodeURIComponent(img.name), '_blank', 'noopener');
+                window.open(BASE_PATH + 'photo.html?img=' + encodeURIComponent(img.name), '_self', 'noopener');
+            });
+
+            currentIndicator.addEventListener('mouseleave', () => {
+                if (!currentIndicatorFirstLeave) {
+                    currentIndicatorFirstLeave = true;
+                    currentIndicator.classList.add('hidden-default');
+                }
             });
 
             function updateLoadingIndicator() {
@@ -291,6 +334,14 @@
                     loadingIndicator.classList.add('hidden');
                 } else {
                     loadingIndicator.classList.remove('hidden');
+                }
+            }
+
+            function updateCurrentIndicator() {
+                if (currentIndex >= 0) {
+                    currentIndicator.textContent = `${currentIndex + 1} / ${totalCount}`;
+                } else {
+                    currentIndicator.textContent = `— / ${totalCount}`;
                 }
             }
 
@@ -395,7 +446,15 @@
             }
 
             async function loadAllSequentially() {
-                for (let i = 0; i < FILE_LIST.length; i++) {
+                const order = [];
+                if (startIndex >= 0) {
+                    order.push(startIndex);
+                }
+                for (let i = 0; i < totalCount; i++) {
+                    if (i !== startIndex) order.push(i);
+                }
+
+                for (const i of order) {
                     try {
                         await loadSingleFile(i);
                     } catch (e) {
@@ -405,13 +464,16 @@
                     }
                 }
                 updateLoadingIndicator();
-                imageCounter.textContent = `${currentIndex+1} / ${totalCount}`;
+                updateCurrentIndicator();
+                if (currentIndex >= 0) {
+                    imageCounter.textContent = `${currentIndex+1} / ${totalCount}`;
+                }
             }
 
             function showImage(index) {
                 if (index < 0 || index >= imagesMeta.length) return;
                 const meta = imagesMeta[index];
-                if (!meta.loaded) return; 
+                if (!meta.loaded) return;
                 currentIndex = index;
                 mainImage.classList.remove('loaded');
                 mainImage.src = meta.thumbUrl;
@@ -423,12 +485,19 @@
                 fullImg.src = meta.fullUrl;
                 updateThumbActive();
                 imageCounter.textContent = `${index + 1} / ${totalCount}`;
+                updateCurrentIndicator();
+
                 const items = document.querySelectorAll('.thumb-item');
                 if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+                const newUrl = window.location.pathname + '?img=' + encodeURIComponent(meta.name);
+                history.replaceState(null, '', newUrl);
             }
 
             function updateThumbActive() {
-                document.querySelectorAll('.thumb-item').forEach((el, i) => el.classList.toggle('active', i === currentIndex));
+                document.querySelectorAll('.thumb-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === currentIndex);
+                });
             }
 
             function nextImage() {
@@ -466,7 +535,8 @@
                 if (Math.abs(delta) > 50) delta > 0 ? prevImage() : nextImage();
             });
 
-            renderThumbnails(); 
+            renderThumbnails();
+            updateCurrentIndicator();
             updateLoadingIndicator();
             loadAllSequentially();
         })();
