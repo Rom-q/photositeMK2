@@ -18,7 +18,6 @@
             align-items: center;
             justify-content: center;
         }
-
         .viewer-container {
             position: relative;
             width: 100%;
@@ -28,7 +27,6 @@
             justify-content: center;
             background: #0a0a0a;
         }
-
         #fullImage {
             max-width: 100%;
             max-height: 100vh;
@@ -36,12 +34,9 @@
             cursor: pointer;
             transition: transform 0.2s;
         }
-
-        /* Панель информации */
         .info-panel {
             position: fixed;
-            top: 16px;
-            right: 16px;
+            top: 16px; right: 16px;
             z-index: 30;
             width: 300px;
             max-width: calc(100vw - 32px);
@@ -60,14 +55,12 @@
             opacity: 1;
             visibility: visible;
         }
-
         .info-panel.collapsed {
             transform: translateX(calc(100% + 40px));
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
         }
-
         .panel-header {
             padding: 10px 14px 8px;
             font-size: 12px;
@@ -79,7 +72,6 @@
             align-items: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-
         .close-panel-btn {
             background: none;
             border: none;
@@ -95,7 +87,6 @@
             transition: background 0.2s;
         }
         .close-panel-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-
         .meta-content {
             flex: 1;
             overflow-y: auto;
@@ -104,17 +95,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            transition: all 0.3s ease;
         }
-
-        .meta-content.hidden {
-            flex: 0 0 0;
-            padding: 0;
-            opacity: 0;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
         .meta-row {
             display: flex;
             justify-content: space-between;
@@ -122,7 +103,6 @@
             border-bottom: 1px dashed rgba(255,255,255,0.08);
             padding-bottom: 3px;
         }
-
         .meta-label {
             color: #aaa;
             font-weight: 500;
@@ -131,14 +111,12 @@
             letter-spacing: 0.3px;
             margin-right: 12px;
         }
-
         .meta-value {
             color: #f0f0f0;
             text-align: right;
             word-break: break-word;
             font-size: 12px;
         }
-
         .loading-text {
             color: #888;
             font-style: italic;
@@ -146,14 +124,11 @@
             padding: 4px 0;
             font-size: 11px;
         }
-
         .show-panel-btn {
             position: fixed;
-            top: 16px;
-            right: 16px;
+            top: 16px; right: 16px;
             z-index: 31;
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 50%;
             background: rgba(18, 18, 24, 0.8);
             backdrop-filter: blur(12px);
@@ -168,13 +143,10 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             transition: 0.2s;
         }
-
         .show-panel-btn.visible { display: flex; }
-
         .back-btn {
             position: fixed;
-            top: 16px;
-            left: 16px;
+            top: 16px; left: 16px;
             z-index: 40;
             background: rgba(20,20,30,0.7);
             backdrop-filter: blur(8px);
@@ -191,15 +163,12 @@
             text-decoration: none;
             transition: background 0.2s;
         }
-        .back-btn:hover { background: rgba(50,50,70,0.8); border-color: rgba(255,255,255,0.5); }
-
+        .back-btn:hover { background: rgba(50,50,70,0.8); }
         .loading-overlay {
-            position: fixed;
-            inset: 0;
+            position: fixed; inset: 0;
             z-index: 100;
             background: rgba(0,0,0,0.85);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             transition: opacity 0.5s ease, visibility 0.5s;
@@ -210,27 +179,14 @@
             visibility: hidden;
             pointer-events: none;
         }
-        .progress-container {
-            width: 200px;
-            height: 6px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 12px;
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: #ffb347;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
-        .progress-bar {
-            width: 0%;
-            height: 100%;
-            background: #ffb347;
-            border-radius: 3px;
-            transition: width 0.2s;
-        }
-        .progress-text {
-            color: #ccc;
-            font-size: 18px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 768px) {
             .info-panel {
@@ -244,7 +200,7 @@
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-btn" title="Вернуться в галерею">← Галерея</a>
+    <a href="index.html" class="back-btn">← Галерея</a>
 
     <div class="viewer-container">
         <img id="fullImage" src="" alt="Полноразмерное изображение">
@@ -263,28 +219,17 @@
     </div>
 
     <div id="loadingOverlay" class="loading-overlay">
-        <div class="progress-text" id="progressText">Загрузка…</div>
-        <div class="progress-container">
-            <div class="progress-bar" id="progressBar"></div>
-        </div>
+        <div class="spinner"></div>
     </div>
 
     <script>
         (function() {
-            
             const BASE_PATH = (() => {
-                const scripts = document.getElementsByTagName('script');
-                const myScript = scripts[scripts.length - 1];
-                const src = myScript.src;
-                if (src) {
-                    const path = src.substring(0, src.lastIndexOf('/')) + '/';
-                    console.log('[Photo] BASE_PATH определён через script src:', path);
-                    return path;
+                if (document.currentScript && document.currentScript.src) {
+                    return document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/')) + '/';
                 }
                 const path = window.location.pathname;
-                const fallback = path.substring(0, path.lastIndexOf('/')) + '/';
-                console.log('[Photo] BASE_PATH определён через location.pathname:', fallback);
-                return fallback;
+                return path.substring(0, path.lastIndexOf('/')) + '/';
             })();
 
             const params = new URLSearchParams(window.location.search);
@@ -297,24 +242,15 @@
             const closePanelBtn = document.getElementById('closePanelBtn');
             const showPanelBtn = document.getElementById('showPanelBtn');
             const loadingOverlay = document.getElementById('loadingOverlay');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
 
             if (!imgName || !/^[\w\-. ]+$/.test(imgName)) {
-                console.error('[Photo] Некорректное имя файла:', imgName);
                 metaContent.innerHTML = '<div class="loading-text">Ошибка: некорректное имя файла</div>';
                 loadingOverlay.classList.add('hidden');
                 return;
             }
-            console.log('[Photo] Загружаемое изображение:', imgName);
 
-            const backBtn = document.querySelector('.back-btn');
-            if (backBtn) {
-                backBtn.href = BASE_PATH + 'index.html?img=' + encodeURIComponent(imgName);
-            }
-
-            const fullUrl = FULL_DIR + imgName;
-            console.log('[Photo] Полный URL оригинала:', fullUrl);
+            // Кнопка "назад" с сохранением контекста
+            document.querySelector('.back-btn').href = BASE_PATH + 'index.html?img=' + encodeURIComponent(imgName);
 
             function collapsePanel() {
                 infoPanel.classList.add('collapsed');
@@ -334,153 +270,97 @@
                      : (bytes / 1048576).toFixed(1) + ' MB';
             }
 
-            function updateProgress(loaded, total) {
-                const percent = total ? Math.round((loaded / total) * 100) : 0;
-                progressBar.style.width = percent + '%';
-                progressText.textContent = total ? `Загрузка… ${percent}%` : 'Загрузка…';
-                if (total) console.log(`[Photo] Прогресс загрузки: ${percent}% (${loaded}/${total} байт)`);
-            }
-
-            function updatePanelBase(size, width, height) {
-                console.log(`[Photo] Обновление панели: размер=${size}, разрешение=${width}x${height}`);
-                let html = '';
-                html += `<div class="meta-row"><span class="meta-label">Имя</span><span class="meta-value">${imgName}</span></div>`;
+            function buildMetaHTML(size, width, height) {
+                let html = `<div class="meta-row"><span class="meta-label">Имя</span><span class="meta-value">${imgName}</span></div>`;
                 html += `<div class="meta-row"><span class="meta-label">Размер</span><span class="meta-value">${formatSize(size)}</span></div>`;
                 if (width && height) {
                     html += `<div class="meta-row"><span class="meta-label">Разрешение</span><span class="meta-value">${width} × ${height}</span></div>`;
                 }
-                html += `<div class="meta-row"><span class="meta-label">EXIF</span><span class="meta-value" style="color:#aaa;" id="exifStatus">Загрузка EXIF…</span></div>`;
-                metaContent.innerHTML = html;
+                html += `<div class="meta-row"><span class="meta-label">EXIF</span><span class="meta-value" id="exifStatus">Загрузка...</span></div>`;
+                return html;
             }
 
-            function applyExifToPanel(exif) {
+            function applyExif(exif) {
                 const statusEl = document.getElementById('exifStatus');
                 if (!statusEl) return;
-
                 if (exif) {
-                    console.log('[Photo] Данные EXIF получены:', exif);
                     let exifHtml = '';
-                    if (exif.DateTime || exif.DateTimeOriginal)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">Дата</span><span class="meta-value">${exif.DateTime || exif.DateTimeOriginal}</span></div>`;
-                    if (exif.Make || exif.Model)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">Камера</span><span class="meta-value">${[exif.Make, exif.Model].filter(Boolean).join(' ')}</span></div>`;
-                    if (exif.FocalLength)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">Фокусное</span><span class="meta-value">${exif.FocalLength} мм</span></div>`;
-                    if (exif.FNumber)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">Диафрагма</span><span class="meta-value">f/${exif.FNumber}</span></div>`;
-                    if (exif.ExposureTime)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">Выдержка</span><span class="meta-value">${exif.ExposureTime} с</span></div>`;
-                    if (exif.ISOSpeedRatings)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">ISO</span><span class="meta-value">${exif.ISOSpeedRatings}</span></div>`;
-                    if (exif.GPSLatitude && exif.GPSLongitude)
-                        exifHtml += `<div class="meta-row"><span class="meta-label">GPS</span><span class="meta-value">${exif.GPSLatitude.toFixed(4)}, ${exif.GPSLongitude.toFixed(4)}</span></div>`;
-                    
+                    if (exif.DateTime || exif.DateTimeOriginal) exifHtml += `<div class="meta-row"><span class="meta-label">Дата</span><span class="meta-value">${exif.DateTime || exif.DateTimeOriginal}</span></div>`;
+                    if (exif.Make || exif.Model) exifHtml += `<div class="meta-row"><span class="meta-label">Камера</span><span class="meta-value">${[exif.Make, exif.Model].filter(Boolean).join(' ')}</span></div>`;
+                    if (exif.FocalLength) exifHtml += `<div class="meta-row"><span class="meta-label">Фокусное</span><span class="meta-value">${exif.FocalLength} мм</span></div>`;
+                    if (exif.FNumber) exifHtml += `<div class="meta-row"><span class="meta-label">Диафрагма</span><span class="meta-value">f/${exif.FNumber}</span></div>`;
+                    if (exif.ExposureTime) exifHtml += `<div class="meta-row"><span class="meta-label">Выдержка</span><span class="meta-value">${exif.ExposureTime} с</span></div>`;
+                    if (exif.ISOSpeedRatings) exifHtml += `<div class="meta-row"><span class="meta-label">ISO</span><span class="meta-value">${exif.ISOSpeedRatings}</span></div>`;
+                    if (exif.GPSLatitude && exif.GPSLongitude) exifHtml += `<div class="meta-row"><span class="meta-label">GPS</span><span class="meta-value">${exif.GPSLatitude.toFixed(4)}, ${exif.GPSLongitude.toFixed(4)}</span></div>`;
                     const row = statusEl.closest('.meta-row');
                     if (row) {
                         row.insertAdjacentHTML('afterend', exifHtml);
                         row.remove();
                     }
                 } else {
-                    console.log('[Photo] EXIF данные отсутствуют');
                     statusEl.textContent = 'недоступен';
                     statusEl.style.color = '#888';
                 }
             }
 
-            async function loadImageData() {
+            async function loadImage() {
                 try {
-                    let blob, file, blobUrl, size, width, height;
-
+                    const fullUrl = FULL_DIR + imgName;
+                    // Попытка получить размер через HEAD (может не сработать из-за CORS, но в нашем случае локально сработает)
+                    let size = null;
                     try {
-                        const response = await fetch(fullUrl);
-                        if (!response.ok) throw new Error('Fetch failed');
-                        console.log('[Photo] fetch успешен, статус:', response.status);
-
-                        const contentLength = response.headers.get('Content-Length');
-                        const total = contentLength ? parseInt(contentLength, 10) : 0;
-                        console.log('[Photo] Content-Length:', total);
-                        const reader = response.body.getReader();
-                        const chunks = [];
-                        let receivedLength = 0;
-
-                        while (true) {
-                            const { done, value } = await reader.read();
-                            if (done) break;
-                            chunks.push(value);
-                            receivedLength += value.length;
-                            if (total) {
-                                updateProgress(receivedLength, total);
-                            } else {
-                                progressText.textContent = 'Загрузка…';
-                            }
+                        const headRes = await fetch(fullUrl, { method: 'HEAD' });
+                        if (headRes.ok) {
+                            const cl = headRes.headers.get('Content-Length');
+                            if (cl) size = parseInt(cl, 10);
                         }
-
-                        blob = new Blob(chunks);
-                        size = blob.size;
-                        file = new File([blob], imgName, { type: blob.type || 'image/jpeg' });
-                        blobUrl = URL.createObjectURL(file);
-                        console.log(`[Photo] Файл загружен, размер: ${size} байт, создан blob URL`);
-
-                    } catch (fetchErr) {
-                        console.warn('[Photo] fetch не удался, используем прямую ссылку без прогресса', fetchErr);
-                        blobUrl = fullUrl;
-                        updateProgress(0, 0);
-                    }
+                    } catch (e) {}
 
                     const img = new Image();
-                    img.src = blobUrl;
+                    img.src = fullUrl;
                     await new Promise((resolve, reject) => {
-                        img.onload = () => {
-                            resolve();
-                        };
-                        img.onerror = () => reject(new Error('Не удалось загрузить изображение'));
+                        img.onload = resolve;
+                        img.onerror = () => reject(new Error('Ошибка загрузки изображения'));
                     });
 
-                    width = img.naturalWidth;
-                    height = img.naturalHeight;
+                    const width = img.naturalWidth;
+                    const height = img.naturalHeight;
 
-                    updatePanelBase(size, width, height);
-                    fullImage.src = blobUrl;
+                    metaContent.innerHTML = buildMetaHTML(size, width, height);
+                    fullImage.src = fullUrl;
                     fullImage.alt = imgName;
 
+                    // EXIF
                     if (window.EXIF && /\.jpe?g$/i.test(imgName)) {
-                        let exifReceived = false;
-                        const exifPromise = new Promise((resolve) => {
+                        const exifData = await new Promise((resolve) => {
+                            let resolved = false;
                             EXIF.getData(img, function() {
-                                if (!exifReceived) {
-                                    exifReceived = true;
-                                    console.log('[Photo] EXIF данные прочитаны через callback');
+                                if (!resolved) {
+                                    resolved = true;
                                     resolve(EXIF.getAllTags(img));
                                 }
                             });
-                        });
-
-                        const timeoutPromise = new Promise((resolve) => {
                             setTimeout(() => {
-                                if (!exifReceived) {
-                                    exifReceived = true;
+                                if (!resolved) {
+                                    resolved = true;
                                     resolve(null);
                                 }
                             }, 5000);
                         });
-
-                        const exifData = await Promise.race([exifPromise, timeoutPromise]);
-                        applyExifToPanel(exifData);
+                        applyExif(exifData);
                     } else {
-                        console.log('[Photo] EXIF не поддерживается или файл не JPEG');
-                        applyExifToPanel(null);
+                        applyExif(null);
                     }
 
                     loadingOverlay.classList.add('hidden');
-
                 } catch (e) {
-                    console.error('[Photo] Ошибка при загрузке изображения:', e);
+                    console.error(e);
                     metaContent.innerHTML = '<div class="loading-text">Ошибка загрузки изображения</div>';
                     loadingOverlay.classList.add('hidden');
                 }
             }
 
-            loadImageData();
+            loadImage();
         })();
     </script>
 </body>

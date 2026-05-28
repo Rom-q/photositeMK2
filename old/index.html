@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0, minimum-scale=0.5">
+    <title>Галерея</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            height: 100vh; width: 100vw;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .viewer { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0a0a0a; z-index: 0; }
+        #mainImage { max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity 0.4s ease; opacity: 0; z-index: 1; pointer-events: none; }
+        #mainImage.loaded { opacity: 1; }
+        .nav-btn { position: fixed; top: 50%; transform: translateY(-50%); z-index: 20; background: rgba(20,20,30,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: white; border: 1px solid rgba(255,255,255,0.25); border-radius: 50%; width: 48px; height: 48px; font-size: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.4); line-height: 1; padding-bottom: 2px; }
+        .nav-btn:hover { background: rgba(50,50,70,0.8); border-color: rgba(255,255,255,0.5); transform: translateY(-50%) scale(1.05); }
+        #prevBtn { left: 16px; } #nextBtn { right: 16px; }
+        body.panel-expanded #nextBtn { right: 136px; }
+        .info-panel { position: fixed; right: 0; top: 0; bottom: 0; z-index: 30; width: 120px; background: rgba(12,12,18,0.8); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 20px 0 0 20px; border: 1px solid rgba(255,255,255,0.15); border-right: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s, visibility 0.35s; color: #eee; transform: translateX(0); opacity: 1; visibility: visible; }
+        .info-panel.collapsed { transform: translateX(100%); opacity: 0; visibility: hidden; pointer-events: none; }
+        .panel-header { padding: 10px 8px 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; color: #aaa; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+        .close-panel-btn { background: none; border: none; color: #ccc; font-size: 20px; cursor: pointer; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s; }
+        .close-panel-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .thumb-list { flex: 1; overflow-y: auto; padding: 6px 4px; display: flex; flex-direction: column; gap: 6px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent; background: rgba(0,0,0,0.2); }
+        .thumb-item { width: 100%; max-width: 100px; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; flex-shrink: 0; background: #1a1a1a; margin: 0 auto; }
+        .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+        .thumb-item.active { border-color: #ffb347; box-shadow: 0 0 10px rgba(255,179,71,0.45); }
+        .show-panel-btn { position: fixed; top: 16px; right: 16px; z-index: 31; width: 40px; height: 40px; border-radius: 50%; background: rgba(18,18,24,0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 20px; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: 0.2s; }
+        .show-panel-btn.visible { display: flex; }
+        .open-full-btn { position: fixed; left: 20px; bottom: 20px; z-index: 40; width: 44px; height: 44px; border-radius: 12px; background: rgba(20,20,30,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; padding: 0; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        .open-full-btn:hover { background: rgba(40,40,55,0.8); }
+        .top-indicators { position: fixed; top: 16px; right: 70px; z-index: 35; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+        .loading-indicator { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border-radius: 20px; padding: 6px 14px; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: opacity 0.3s; }
+        .loading-indicator.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #ffb347; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .current-indicator { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); border-radius: 20px; padding: 6px 14px; color: #ccc; font-size: 13px; white-space: nowrap; }
+        @media (max-width: 768px) {
+            .info-panel { top: auto; bottom: 16px; right: 16px; left: 16px; width: auto; height: 100px; border-radius: 28px 28px 20px 20px; flex-direction: row; }
+            .panel-header { display: none; }
+            .thumb-list { flex-direction: row; width: 100%; height: 100%; overflow-x: auto; overflow-y: hidden; padding: 8px 6px; gap: 8px; }
+            .thumb-item { width: 60px; height: 60px; flex-shrink: 0; }
+            .nav-btn { width: 40px; height: 40px; font-size: 26px; }
+            #prevBtn { left: 8px; } #nextBtn { right: 8px; }
+            body.panel-expanded #nextBtn { right: 8px; }
+            .info-panel.collapsed { transform: translateY(calc(100% + 40px)); }
+            .show-panel-btn { top: auto; bottom: 16px; right: 16px; }
+            .open-full-btn { left: 12px; bottom: 12px; width: 38px; height: 38px; font-size: 18px; }
+            .top-indicators { top: auto; bottom: 70px; right: 16px; flex-direction: row; }
+        }
+    </style>
+</head>
+<body>
+    <div class="viewer">
+        <img id="mainImage" src="" alt="Изображение">
+    </div>
+    <button class="nav-btn" id="prevBtn">‹</button>
+    <button class="nav-btn" id="nextBtn">›</button>
+    <button class="show-panel-btn visible" id="showPanelBtn" aria-label="Показать панель">☰</button>
+    <div class="info-panel collapsed" id="infoPanel">
+        <div class="panel-header">
+            <span id="imageCounter">0 / 0</span>
+            <button class="close-panel-btn" id="closePanelBtn" aria-label="Скрыть панель">✕</button>
+        </div>
+        <div class="thumb-list" id="thumbList"></div>
+    </div>
+    <button id="openFullBtn" class="open-full-btn" title="Открыть оригинал">↗</button>
+    <div class="top-indicators">
+        <div id="loadingIndicator" class="loading-indicator">
+            <div class="spinner"></div>
+            <span id="loadingText">0 / 20</span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const BASE_PATH = (() => {
+                if (document.currentScript && document.currentScript.src) {
+                    return document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/')) + '/';
+                }
+                const path = window.location.pathname;
+                return path.substring(0, path.lastIndexOf('/')) + '/';
+            })();
+
+            const PHOTO_DIR = BASE_PATH + 'images/';
+            const THUMB_DIR = BASE_PATH + 'thumbnails/';
+            const FILE_LIST = [
+                'IMG_2336-2.png', 'IMG_2372.png', 'IMG_2376.png', 'IMG_2382.png',
+                'IMG_2389.png', 'IMG_2396.png', 'IMG_2397.png', 'IMG_2405.png',
+                'IMG_2410.png', 'IMG_2502png.PNG', 'IMG_2503png.PNG', 'IMG_2533png.PNG',
+                'IMG_2534png.PNG', 'IMG_2536png.PNG', 'IMG_2537png.PNG', 'IMG_2540png.PNG',
+                'IMG_2548png.PNG', 'IMG_2549png_1.PNG', 'IMG_2663jpg.JPG', 'IMG_2743jpg.JPG'
+            ];
+
+            const mainImage = document.getElementById('mainImage');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const thumbList = document.getElementById('thumbList');
+            const imageCounter = document.getElementById('imageCounter');
+            const infoPanel = document.getElementById('infoPanel');
+            const closePanelBtn = document.getElementById('closePanelBtn');
+            const showPanelBtn = document.getElementById('showPanelBtn');
+            const openFullBtn = document.getElementById('openFullBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const loadingText = document.getElementById('loadingText');
+
+            let currentIndex = -1;
+            const totalCount = FILE_LIST.length;
+            let loadedCount = 0;
+
+            const imagesLoaded = new Array(totalCount).fill(false);
+            const blobUrls = new Array(totalCount).fill(null);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const startImg = urlParams.get('img');
+            if (startImg) {
+                const idx = FILE_LIST.indexOf(startImg);
+                if (idx !== -1) currentIndex = idx;
+            }
+
+            function collapsePanel() {
+                infoPanel.classList.add('collapsed');
+                showPanelBtn.classList.add('visible');
+                document.body.classList.remove('panel-expanded');
+            }
+            function expandPanel() {
+                infoPanel.classList.remove('collapsed');
+                showPanelBtn.classList.remove('visible');
+                document.body.classList.add('panel-expanded');
+            }
+            closePanelBtn.addEventListener('click', collapsePanel);
+            showPanelBtn.addEventListener('click', expandPanel);
+            document.body.classList.remove('panel-expanded');
+
+            function updateLoadingIndicator() {
+                loadingText.textContent = `${loadedCount} / ${totalCount}`;
+                loadingIndicator.classList.toggle('hidden', loadedCount >= totalCount);
+            }
+            updateLoadingIndicator();
+
+            function createThumbnail(index, thumbUrl) {
+                const div = document.createElement('div');
+                div.className = 'thumb-item' + (index === currentIndex ? ' active' : '');
+                const img = document.createElement('img');
+                img.src = thumbUrl;
+                img.alt = FILE_LIST[index];
+                img.loading = 'lazy';
+                img.onerror = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 72; canvas.height = 72;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(0, 0, 72, 72);
+                    ctx.fillStyle = '#aaa';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⏳', 36, 40);
+                    div.innerHTML = '';
+                    div.appendChild(canvas);
+                };
+                div.appendChild(img);
+                div.addEventListener('click', () => {
+                    if (imagesLoaded[index]) showImage(index);
+                });
+                return div;
+            }
+
+            function renderThumbnails() {
+                thumbList.innerHTML = '';
+                for (let i = 0; i < totalCount; i++) {
+                    const thumbUrl = THUMB_DIR + FILE_LIST[i].replace(/\.[^.]+$/, '') + '_thumb.jpg';
+                    thumbList.appendChild(createThumbnail(i, thumbUrl));
+                }
+            }
+            renderThumbnails();
+
+            async function preloadImageBlob(index) {
+                if (imagesLoaded[index]) return blobUrls[index];
+                const url = PHOTO_DIR + FILE_LIST[index];
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('Fetch failed');
+                    const blob = await response.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    blobUrls[index] = blobUrl;
+                    imagesLoaded[index] = true;
+                    loadedCount++;
+                    updateLoadingIndicator();
+                    return blobUrl;
+                } catch (e) {
+                    console.warn(`Ошибка загрузки ${FILE_LIST[index]}`, e);
+                    imagesLoaded[index] = true;
+                    loadedCount++;
+                    updateLoadingIndicator();
+                    blobUrls[index] = url;
+                    return url;
+                }
+            }
+
+            function releaseFarBlobs(center, keepRadius = 2) {
+                for (let i = 0; i < totalCount; i++) {
+                    const dist = Math.abs(i - center);
+                    const circularDist = Math.min(dist, totalCount - dist);
+                    if (circularDist > keepRadius && blobUrls[i] && blobUrls[i].startsWith('blob:')) {
+                        URL.revokeObjectURL(blobUrls[i]);
+                        blobUrls[i] = null;
+                        imagesLoaded[i] = false;
+                        loadedCount--;
+                        updateLoadingIndicator();
+                    }
+                }
+            }
+
+            function getPriorityOrder(center) {
+                const order = [];
+                const used = new Set();
+                if (center >= 0 && center < totalCount) {
+                    order.push(center);
+                    used.add(center);
+                }
+                for (let offset = 1; offset < totalCount; offset++) {
+                    const next = center + offset;
+                    const prev = center - offset;
+                    if (next < totalCount && !used.has(next)) { order.push(next); used.add(next); }
+                    if (prev >= 0 && !used.has(prev)) { order.push(prev); used.add(prev); }
+                }
+                for (let i = 0; i < totalCount; i++) {
+                    if (!used.has(i)) order.push(i);
+                }
+                return order;
+            }
+
+            async function preloadWithConcurrency(priorityList, concurrency = 3) {
+                const queue = [...priorityList];
+                async function worker() {
+                    while (queue.length > 0) {
+                        const idx = queue.shift();
+                        if (!imagesLoaded[idx]) {
+                            await preloadImageBlob(idx);
+                        }
+                    }
+                }
+                const workers = [];
+                for (let i = 0; i < concurrency; i++) workers.push(worker());
+                await Promise.all(workers);
+            }
+
+            async function startPreloading() {
+                const center = currentIndex >= 0 ? currentIndex : 0;
+                if (!imagesLoaded[center]) {
+                    await preloadImageBlob(center);
+                }
+                if (currentIndex === -1) currentIndex = center;
+                showImage(currentIndex);
+                const priority = getPriorityOrder(center).filter(i => i !== center);
+                preloadWithConcurrency(priority, 3);
+            }
+
+            function showImage(index) {
+                if (!imagesLoaded[index]) return;
+                currentIndex = index;
+                const blobUrl = blobUrls[index];
+                mainImage.classList.remove('loaded');
+                mainImage.src = blobUrl;
+                const tempImg = new Image();
+                tempImg.src = blobUrl;
+                tempImg.onload = () => { mainImage.classList.add('loaded'); };
+                tempImg.onerror = () => { mainImage.classList.add('loaded'); };
+
+                updateThumbActive();
+                imageCounter.textContent = `${index + 1} / ${totalCount}`;
+
+                const thumb = document.querySelector(`.thumb-item:nth-child(${index + 1})`);
+                if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+                const newUrl = window.location.pathname + '?img=' + encodeURIComponent(FILE_LIST[index]);
+                history.replaceState(null, '', newUrl);
+                releaseFarBlobs(index, 2);
+            }
+
+            function updateThumbActive() {
+                document.querySelectorAll('.thumb-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === currentIndex);
+                });
+            }
+
+            function nextImage() {
+                let next = currentIndex;
+                for (let i = 0; i < totalCount; i++) {
+                    next = (next + 1) % totalCount;
+                    if (imagesLoaded[next]) { showImage(next); return; }
+                }
+            }
+            function prevImage() {
+                let prev = currentIndex;
+                for (let i = 0; i < totalCount; i++) {
+                    prev = (prev - 1 + totalCount) % totalCount;
+                    if (imagesLoaded[prev]) { showImage(prev); return; }
+                }
+            }
+            prevBtn.addEventListener('click', prevImage);
+            nextBtn.addEventListener('click', nextImage);
+            document.addEventListener('keydown', e => {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); prevImage(); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); nextImage(); }
+            });
+
+            openFullBtn.addEventListener('click', () => {
+                if (currentIndex >= 0 && imagesLoaded[currentIndex]) {
+                    location.href = BASE_PATH + 'photo.html?img=' + encodeURIComponent(FILE_LIST[currentIndex]);
+                }
+            });
+
+            startPreloading();
+        })();
+    </script>
+</body>
+</html>
