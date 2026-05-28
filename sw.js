@@ -1,4 +1,4 @@
-const CACHE_NAME = 'romq-gallery-cache-1.3';
+const CACHE_NAME = 'romq-gallery-cache-1.4';
 const urlsToCache = [];
 
 console.log('[SW] Service Worker скрипт загружен');

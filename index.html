@@ -223,7 +223,6 @@
     <button id="openFullBtn" class="open-full-btn" title="Открыть оригинал (полноразмерное изображение)">↗</button>
 
     <div class="top-indicators">
-        <div id="currentIndicator" class="current-indicator">0 / 20</div>
         <div id="loadingIndicator" class="loading-indicator">
             <div class="spinner"></div>
             <span id="loadingText">0 / 20</span>
@@ -270,12 +269,10 @@
             const openFullBtn = document.getElementById('openFullBtn');
             const loadingIndicator = document.getElementById('loadingIndicator');
             const loadingText = document.getElementById('loadingText');
-            const currentIndicator = document.getElementById('currentIndicator');
 
             let imagesMeta = [];
             let currentIndex = -1;
             let fullBtnFirstLeave = false;
-            let currentIndicatorFirstLeave = false;
             let totalCount = FILE_LIST.length;
             let loadedCount = 0;
 
@@ -336,13 +333,6 @@
                 window.open(BASE_PATH + 'photo.html?img=' + encodeURIComponent(img.name), '_self', 'noopener');
             });
 
-            currentIndicator.addEventListener('mouseleave', () => {
-                if (!currentIndicatorFirstLeave) {
-                    currentIndicatorFirstLeave = true;
-                    currentIndicator.classList.add('hidden-default');
-                }
-            });
-
             function updateLoadingIndicator() {
                 loadingText.textContent = `${loadedCount} / ${totalCount}`;
                 if (loadedCount >= totalCount) {
@@ -352,13 +342,6 @@
                 }
             }
 
-            function updateCurrentIndicator() {
-                if (currentIndex >= 0) {
-                    currentIndicator.textContent = `${currentIndex + 1} / ${totalCount}`;
-                } else {
-                    currentIndicator.textContent = `— / ${totalCount}`;
-                }
-            }
 
             function renderThumbnails() {
                 console.log('[Gallery] Рендер миниатюр');
@@ -490,7 +473,6 @@
                     }
                 }
                 updateLoadingIndicator();
-                updateCurrentIndicator();
                 if (currentIndex >= 0) {
                     imageCounter.textContent = `${currentIndex+1} / ${totalCount}`;
                 }
@@ -551,7 +533,6 @@
 
                 updateThumbActive();
                 imageCounter.textContent = `${index + 1} / ${totalCount}`;
-                updateCurrentIndicator();
 
                 const items = document.querySelectorAll('.thumb-item');
                 if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -611,7 +592,6 @@
             // });
 
             renderThumbnails();
-            updateCurrentIndicator();
             updateLoadingIndicator();
             loadAllSequentially();
             if ('serviceWorker' in navigator) {
