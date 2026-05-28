@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=2.0, minimum-scale=0.5">
+    <title>Просмотр оригинала</title>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            color: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viewer-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+        }
+
+        #fullImage {
+            max-width: 100%;
+            max-height: 100vh;
+            object-fit: contain;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 30;
+            width: 300px;
+            max-width: calc(100vw - 32px);
+            max-height: calc(100vh - 32px);
+            background: rgba(12, 12, 18, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s, visibility 0.35s;
+            transform: translateX(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .info-panel.collapsed {
+            transform: translateX(calc(100% + 40px));
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .panel-header {
+            padding: 10px 14px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #aaa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-panel-btn {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 20px;
+            cursor: pointer;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .close-panel-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        .meta-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .meta-content.hidden {
+            flex: 0 0 0;
+            padding: 0;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px dashed rgba(255,255,255,0.08);
+            padding-bottom: 3px;
+        }
+
+        .meta-label {
+            color: #aaa;
+            font-weight: 500;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-right: 12px;
+        }
+
+        .meta-value {
+            color: #f0f0f0;
+            text-align: right;
+            word-break: break-word;
+            font-size: 12px;
+        }
+
+        .loading-text {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 4px 0;
+            font-size: 11px;
+        }
+
+        .show-panel-btn {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 31;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(18, 18, 24, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            font-size: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: 0.2s;
+        }
+
+        .show-panel-btn.visible {
+            display: flex;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 40;
+            background: rgba(20,20,30,0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: white;
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .back-btn:hover {
+            background: rgba(50,50,70,0.8);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        @media (max-width: 768px) {
+            .info-panel {
+                top: auto;
+                bottom: 0;
+                right: 0;
+                left: 0;
+                width: 100%;
+                max-height: 45vh;
+                border-radius: 20px 20px 0 0;
+            }
+            .info-panel.collapsed {
+                transform: translateY(calc(100% + 40px));
+            }
+            .show-panel-btn {
+                top: auto;
+                bottom: 16px;
+                right: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-btn" title="Вернуться в галерею">← Галерея</a>
+
+    <div class="viewer-container">
+        <img id="fullImage" src="" alt="Полноразмерное изображение">
+    </div>
+
+    <button class="show-panel-btn" id="showPanelBtn" aria-label="Показать панель">☰</button>
+
+    <div class="info-panel" id="infoPanel">
+        <div class="panel-header">
+            <div class="panel-header-left">
+                <span>Информация</span>
+            </div>
+            <button class="close-panel-btn" id="closePanelBtn" aria-label="Скрыть панель">✕</button>
+        </div>
+        <div class="meta-content" id="metaContent">
+            <div class="loading-text">Загрузка данных...</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const imgName = params.get('img');
+            const FULL_DIR = './images/';
+
+            const fullImage = document.getElementById('fullImage');
+            const metaContent = document.getElementById('metaContent');
+            const infoPanel = document.getElementById('infoPanel');
+            const closePanelBtn = document.getElementById('closePanelBtn');
+            const showPanelBtn = document.getElementById('showPanelBtn');
+
+            if (!imgName || !/^[\w\-. ]+$/.test(imgName)) {
+                metaContent.innerHTML = '<div class="loading-text">Ошибка: некорректное имя файла</div>';
+                return;
+            }
+
+            const backBtn = document.querySelector('.back-btn');
+            if (backBtn) {
+                backBtn.href = 'index.html?img=' + encodeURIComponent(imgName);
+            }
+
+            const fullUrl = FULL_DIR + imgName;
+
+            function collapsePanel() {
+                infoPanel.classList.add('collapsed');
+                showPanelBtn.classList.add('visible');
+            }
+            function expandPanel() {
+                infoPanel.classList.remove('collapsed');
+                showPanelBtn.classList.remove('visible');
+            }
+            closePanelBtn.addEventListener('click', collapsePanel);
+            showPanelBtn.addEventListener('click', expandPanel);
+
+            function formatSize(bytes) {
+                if (bytes == null) return '—';
+                return bytes < 1024 ? bytes + ' B'
+                     : bytes < 1048576 ? (bytes / 1024).toFixed(1) + ' KB'
+                     : (bytes / 1048576).toFixed(1) + ' MB';
+            }
+
+            function updatePanelBase(size, width, height) {
+                let html = '';
+                html += `<div class="meta-row"><span class="meta-label">Имя</span><span class="meta-value">${imgName}</span></div>`;
+                html += `<div class="meta-row"><span class="meta-label">Размер</span><span class="meta-value">${formatSize(size)}</span></div>`;
+                if (width && height) {
+                    html += `<div class="meta-row"><span class="meta-label">Разрешение</span><span class="meta-value">${width} × ${height}</span></div>`;
+                }
+                html += `<div class="meta-row"><span class="meta-label">EXIF</span><span class="meta-value" style="color:#aaa;" id="exifStatus">Загрузка EXIF…</span></div>`;
+                metaContent.innerHTML = html;
+            }
+
+            function applyExifToPanel(exif) {
+                const statusEl = document.getElementById('exifStatus');
+                if (!statusEl) return;
+
+                if (exif) {
+                    let exifHtml = '';
+                    if (exif.DateTime || exif.DateTimeOriginal)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">Дата</span><span class="meta-value">${exif.DateTime || exif.DateTimeOriginal}</span></div>`;
+                    if (exif.Make || exif.Model)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">Камера</span><span class="meta-value">${[exif.Make, exif.Model].filter(Boolean).join(' ')}</span></div>`;
+                    if (exif.FocalLength)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">Фокусное</span><span class="meta-value">${exif.FocalLength} мм</span></div>`;
+                    if (exif.FNumber)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">Диафрагма</span><span class="meta-value">f/${exif.FNumber}</span></div>`;
+                    if (exif.ExposureTime)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">Выдержка</span><span class="meta-value">${exif.ExposureTime} с</span></div>`;
+                    if (exif.ISOSpeedRatings)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">ISO</span><span class="meta-value">${exif.ISOSpeedRatings}</span></div>`;
+                    if (exif.GPSLatitude && exif.GPSLongitude)
+                        exifHtml += `<div class="meta-row"><span class="meta-label">GPS</span><span class="meta-value">${exif.GPSLatitude.toFixed(4)}, ${exif.GPSLongitude.toFixed(4)}</span></div>`;
+                    
+                    const row = statusEl.closest('.meta-row');
+                    if (row) {
+                        row.insertAdjacentHTML('afterend', exifHtml);
+                        row.remove();
+                    }
+                } else {
+                    statusEl.textContent = 'недоступен';
+                    statusEl.style.color = '#888';
+                }
+            }
+
+            async function loadImageData() {
+                try {
+                    let blob, file, blobUrl, size, width, height;
+
+                    try {
+                        const response = await fetch(fullUrl);
+                        if (!response.ok) throw new Error('Fetch failed');
+                        blob = await response.blob();
+                        size = blob.size;
+                        file = new File([blob], imgName, { type: blob.type || 'image/jpeg' });
+                        blobUrl = URL.createObjectURL(file);
+                    } catch (fetchErr) {
+                        console.warn('fetch не удался, пробуем загрузить напрямую через Image');
+                        blobUrl = fullUrl;
+                    }
+
+                    const img = new Image();
+                    img.src = blobUrl;
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = () => reject(new Error('Не удалось загрузить изображение'));
+                    });
+
+                    width = img.naturalWidth;
+                    height = img.naturalHeight;
+
+                    updatePanelBase(size, width, height);
+                    fullImage.src = blobUrl;
+                    fullImage.alt = imgName;
+
+                    if (window.EXIF && /\.jpe?g$/i.test(imgName)) {
+                        let exifReceived = false;
+                        const exifPromise = new Promise((resolve) => {
+                            EXIF.getData(img, function() {
+                                if (!exifReceived) {
+                                    exifReceived = true;
+                                    resolve(EXIF.getAllTags(img));
+                                }
+                            });
+                        });
+
+                        const timeoutPromise = new Promise((resolve) => {
+                            setTimeout(() => {
+                                if (!exifReceived) {
+                                    exifReceived = true;
+                                    resolve(null); 
+                                }
+                            }, 5000);
+                        });
+
+                        const exifData = await Promise.race([exifPromise, timeoutPromise]);
+                        applyExifToPanel(exifData);
+                    } else {
+                        applyExifToPanel(null);
+                    }
+
+                } catch (e) {
+                    console.error(e);
+                    metaContent.innerHTML = '<div class="loading-text">Ошибка загрузки изображения</div>';
+                }
+            }
+
+            loadImageData();
+        })();
+    </script>
+</body>
+</html>

@@ -1,11 +1,10 @@
 import os
 from PIL import Image
 
-# Настройки
 INPUT_DIR = "images"   
 OUTPUT_DIR = "thumbnails"       
-THUMB_SIZE = (400, 400)         
-QUALITY = 85                    
+THUMB_SIZE = (1920, 1080)         
+QUALITY = 100                    
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
