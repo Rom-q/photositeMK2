@@ -37,6 +37,7 @@
             transition: transform 0.2s;
         }
 
+        /* Панель информации */
         .info-panel {
             position: fixed;
             top: 16px;
@@ -79,12 +80,6 @@
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
-        .panel-header-left {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .close-panel-btn {
             background: none;
             border: none;
@@ -99,10 +94,7 @@
             border-radius: 50%;
             transition: background 0.2s;
         }
-        .close-panel-btn:hover {
-            background: rgba(255,255,255,0.15);
-            color: #fff;
-        }
+        .close-panel-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
 
         .meta-content {
             flex: 1;
@@ -177,9 +169,7 @@
             transition: 0.2s;
         }
 
-        .show-panel-btn.visible {
-            display: flex;
-        }
+        .show-panel-btn.visible { display: flex; }
 
         .back-btn {
             position: fixed;
@@ -201,29 +191,55 @@
             text-decoration: none;
             transition: background 0.2s;
         }
-        .back-btn:hover {
-            background: rgba(50,50,70,0.8);
-            border-color: rgba(255,255,255,0.5);
+        .back-btn:hover { background: rgba(50,50,70,0.8); border-color: rgba(255,255,255,0.5); }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+            backdrop-filter: blur(4px);
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .progress-container {
+            width: 200px;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #ffb347;
+            border-radius: 3px;
+            transition: width 0.2s;
+        }
+        .progress-text {
+            color: #ccc;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
 
         @media (max-width: 768px) {
             .info-panel {
-                top: auto;
-                bottom: 0;
-                right: 0;
-                left: 0;
-                width: 100%;
-                max-height: 45vh;
+                top: auto; bottom: 0; right: 0; left: 0;
+                width: 100%; max-height: 45vh;
                 border-radius: 20px 20px 0 0;
             }
-            .info-panel.collapsed {
-                transform: translateY(calc(100% + 40px));
-            }
-            .show-panel-btn {
-                top: auto;
-                bottom: 16px;
-                right: 16px;
-            }
+            .info-panel.collapsed { transform: translateY(calc(100% + 40px)); }
+            .show-panel-btn { top: auto; bottom: 16px; right: 16px; }
         }
     </style>
 </head>
@@ -238,9 +254,7 @@
 
     <div class="info-panel" id="infoPanel">
         <div class="panel-header">
-            <div class="panel-header-left">
-                <span>Информация</span>
-            </div>
+            <span>Информация</span>
             <button class="close-panel-btn" id="closePanelBtn" aria-label="Скрыть панель">✕</button>
         </div>
         <div class="meta-content" id="metaContent">
@@ -248,26 +262,46 @@
         </div>
     </div>
 
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="progress-text" id="progressText">Загрузка…</div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
     <script>
         (function() {
+            const BASE_PATH = (() => {
+                const scripts = document.getElementsByTagName('script');
+                const myScript = scripts[scripts.length - 1];
+                const src = myScript.src;
+                if (src) return src.substring(0, src.lastIndexOf('/')) + '/';
+                const path = window.location.pathname;
+                return path.substring(0, path.lastIndexOf('/')) + '/';
+            })();
+
             const params = new URLSearchParams(window.location.search);
             const imgName = params.get('img');
-            const FULL_DIR = './images/';
+            const FULL_DIR = BASE_PATH + 'images/';
 
             const fullImage = document.getElementById('fullImage');
             const metaContent = document.getElementById('metaContent');
             const infoPanel = document.getElementById('infoPanel');
             const closePanelBtn = document.getElementById('closePanelBtn');
             const showPanelBtn = document.getElementById('showPanelBtn');
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
 
             if (!imgName || !/^[\w\-. ]+$/.test(imgName)) {
                 metaContent.innerHTML = '<div class="loading-text">Ошибка: некорректное имя файла</div>';
+                loadingOverlay.classList.add('hidden');
                 return;
             }
 
             const backBtn = document.querySelector('.back-btn');
             if (backBtn) {
-                backBtn.href = 'index.html?img=' + encodeURIComponent(imgName);
+                backBtn.href = BASE_PATH + 'index.html?img=' + encodeURIComponent(imgName);
             }
 
             const fullUrl = FULL_DIR + imgName;
@@ -288,6 +322,12 @@
                 return bytes < 1024 ? bytes + ' B'
                      : bytes < 1048576 ? (bytes / 1024).toFixed(1) + ' KB'
                      : (bytes / 1048576).toFixed(1) + ' MB';
+            }
+
+            function updateProgress(loaded, total) {
+                const percent = total ? Math.round((loaded / total) * 100) : 0;
+                progressBar.style.width = percent + '%';
+                progressText.textContent = total ? `Загрузка… ${percent}%` : 'Загрузка…';
             }
 
             function updatePanelBase(size, width, height) {
@@ -340,13 +380,34 @@
                     try {
                         const response = await fetch(fullUrl);
                         if (!response.ok) throw new Error('Fetch failed');
-                        blob = await response.blob();
+
+                        const contentLength = response.headers.get('Content-Length');
+                        const total = contentLength ? parseInt(contentLength, 10) : 0;
+                        const reader = response.body.getReader();
+                        const chunks = [];
+                        let receivedLength = 0;
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            chunks.push(value);
+                            receivedLength += value.length;
+                            if (total) {
+                                updateProgress(receivedLength, total);
+                            } else {
+                                progressText.textContent = 'Загрузка…';
+                            }
+                        }
+
+                        blob = new Blob(chunks);
                         size = blob.size;
                         file = new File([blob], imgName, { type: blob.type || 'image/jpeg' });
                         blobUrl = URL.createObjectURL(file);
+
                     } catch (fetchErr) {
-                        console.warn('fetch не удался, пробуем загрузить напрямую через Image');
+                        console.warn('fetch не удался, используем прямую ссылку без прогресса');
                         blobUrl = fullUrl;
+                        updateProgress(0, 0);
                     }
 
                     const img = new Image();
@@ -378,7 +439,7 @@
                             setTimeout(() => {
                                 if (!exifReceived) {
                                     exifReceived = true;
-                                    resolve(null); 
+                                    resolve(null);
                                 }
                             }, 5000);
                         });
@@ -389,9 +450,12 @@
                         applyExifToPanel(null);
                     }
 
+                    loadingOverlay.classList.add('hidden');
+
                 } catch (e) {
                     console.error(e);
                     metaContent.innerHTML = '<div class="loading-text">Ошибка загрузки изображения</div>';
+                    loadingOverlay.classList.add('hidden');
                 }
             }
 
