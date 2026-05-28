@@ -47,6 +47,10 @@
         #prevBtn { left: 16px; }
         #nextBtn { right: 16px; }
 
+        body.panel-expanded #nextBtn {
+            right: 136px;
+        }
+
         .info-panel {
             position: fixed; right: 0; top: 0; bottom: 0;
             z-index: 30; width: 120px;
@@ -56,7 +60,7 @@
             border: 1px solid rgba(255,255,255,0.15); border-right: none;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             display: flex; flex-direction: column; overflow: hidden;
-            transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s ease, visibility 0.35s;
+            transition: transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s, visibility 0.35s;
             color: #eee;
             transform: translateX(0); opacity: 1; visibility: visible;
         }
@@ -106,8 +110,7 @@
             width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
             background: #2a2a2a; color: #aaa; font-size: 10px;
-            flex-direction: column;
-            text-align: center;
+            flex-direction: column; text-align: center;
         }
         .show-panel-btn {
             position: fixed; top: 16px; right: 16px; z-index: 31;
@@ -132,27 +135,20 @@
             color: #fff; font-size: 22px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            transition: opacity 0.3s ease, background 0.2s;
-            opacity: 1;
-            padding: 0;
-            line-height: 1;
+            transition: background 0.2s;
+            padding: 0; line-height: 1;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
-        .open-full-btn.hidden-default { opacity: 0; }
-        .open-full-btn.hidden-default:hover { opacity: 1; background: rgba(40,40,55,0.8); }
-        .open-full-btn:not(.hidden-default):hover { background: rgba(40,40,55,0.8); }
+        .open-full-btn:hover { background: rgba(40,40,55,0.8); }
 
         .top-indicators {
             position: fixed; top: 16px; right: 70px;
             z-index: 35;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            display: flex; align-items: center; gap: 8px;
             pointer-events: none;
         }
-        .top-indicators > * {
-            pointer-events: auto;
-        }
+        .top-indicators > * { pointer-events: auto; }
+
         .loading-indicator {
             background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
             border-radius: 20px; padding: 6px 14px;
@@ -175,11 +171,7 @@
             border-radius: 20px; padding: 6px 14px;
             color: #ccc; font-size: 13px;
             white-space: nowrap;
-            transition: opacity 0.3s ease, background 0.2s;
-            cursor: default;
         }
-        .current-indicator.hidden-default { opacity: 0; }
-        .current-indicator:not(.hidden-default):hover { background: rgba(30,30,40,0.8); }
 
         @media (max-width: 768px) {
             .info-panel {
@@ -196,6 +188,7 @@
             .thumb-item { width: 60px; height: 60px; flex-shrink: 0; }
             .nav-btn { width: 40px; height: 40px; font-size: 26px; }
             #prevBtn { left: 8px; } #nextBtn { right: 8px; }
+            body.panel-expanded #nextBtn { right: 8px; }
             .info-panel.collapsed { transform: translateY(calc(100% + 40px)); }
             .show-panel-btn { top: auto; bottom: 16px; right: 16px; }
             .open-full-btn { left: 12px; bottom: 12px; width: 38px; height: 38px; font-size: 18px; }
@@ -208,7 +201,7 @@
 </head>
 <body>
     <div class="viewer">
-        <img id="mainImage" src="" alt="Изображение" class="loaded">
+        <img id="mainImage" src="" alt="Изображение">
     </div>
     <button class="nav-btn" id="prevBtn">‹</button>
     <button class="nav-btn" id="nextBtn">›</button>
@@ -220,10 +213,10 @@
         </div>
         <div class="thumb-list" id="thumbList"></div>
     </div>
-    <button id="openFullBtn" class="open-full-btn" title="Открыть оригинал (полноразмерное изображение)">↗</button>
+    <button id="openFullBtn" class="open-full-btn" title="Открыть оригинал">↗</button>
 
     <div class="top-indicators">
-        <div id="currentIndicator" class="current-indicator">0 / 20</div>
+        <!-- <div id="currentIndicator" class="current-indicator">0 / 20</div> -->
         <div id="loadingIndicator" class="loading-indicator">
             <div class="spinner"></div>
             <span id="loadingText">0 / 20</span>
@@ -232,20 +225,12 @@
 
     <script>
         (function() {
-            
             const BASE_PATH = (() => {
-                const scripts = document.getElementsByTagName('script');
-                const myScript = scripts[scripts.length - 1];
-                const src = myScript.src;
-                if (src) {
-                    const path = src.substring(0, src.lastIndexOf('/')) + '/';
-                    console.log('[Gallery] BASE_PATH определён через script src:', path);
-                    return path;
+                if (document.currentScript && document.currentScript.src) {
+                    return document.currentScript.src.substring(0, document.currentScript.src.lastIndexOf('/')) + '/';
                 }
                 const path = window.location.pathname;
-                const fallback = path.substring(0, path.lastIndexOf('/')) + '/';
-                console.log('[Gallery] BASE_PATH определён через location.pathname:', fallback);
-                return fallback;
+                return path.substring(0, path.lastIndexOf('/')) + '/';
             })();
 
             const PHOTO_DIR = BASE_PATH + 'images/';
@@ -257,7 +242,6 @@
                 'IMG_2534png.PNG', 'IMG_2536png.PNG', 'IMG_2537png.PNG', 'IMG_2540png.PNG',
                 'IMG_2548png.PNG', 'IMG_2549png_1.PNG', 'IMG_2663jpg.JPG', 'IMG_2743jpg.JPG'
             ];
-            // console.log('[Gallery] Список файлов:', FILE_LIST);
 
             const mainImage = document.getElementById('mainImage');
             const prevBtn = document.getElementById('prevBtn');
@@ -270,293 +254,189 @@
             const openFullBtn = document.getElementById('openFullBtn');
             const loadingIndicator = document.getElementById('loadingIndicator');
             const loadingText = document.getElementById('loadingText');
-            const currentIndicator = document.getElementById('currentIndicator');
+            // const currentIndicator = document.getElementById('currentIndicator');
 
-            let imagesMeta = [];
             let currentIndex = -1;
-            let fullBtnFirstLeave = false;
-            let currentIndicatorFirstLeave = false;
             let totalCount = FILE_LIST.length;
             let loadedCount = 0;
-
-            FILE_LIST.forEach((name, i) => {
-                imagesMeta[i] = {
-                    name,
-                    loaded: false,
-                    fullUrl: null,
-                    thumbUrl: null,
-                    size: null,
-                    width: null,
-                    height: null
-                };
-            });
+            const imagesLoaded = new Array(totalCount).fill(false);
 
             const urlParams = new URLSearchParams(window.location.search);
             const startImg = urlParams.get('img');
-            let startIndex = -1;
             if (startImg) {
-                const foundIndex = FILE_LIST.findIndex(name => name === startImg);
-                if (foundIndex !== -1) {
-                    startIndex = foundIndex;
-                    // console.log('[Gallery] Запрошено начальное изображение:', startImg, 'индекс:', startIndex);
-                } else {
-                    // console.warn('[Gallery] Изображение не найдено в списке:', startImg);
-                }
+                const idx = FILE_LIST.indexOf(startImg);
+                if (idx !== -1) currentIndex = idx;
             }
-            currentIndex = startIndex;
-            // console.log('[Gallery] Текущий индекс:', currentIndex);
 
             function collapsePanel() {
                 infoPanel.classList.add('collapsed');
                 showPanelBtn.classList.add('visible');
-                if (window.innerWidth > 768) nextBtn.style.right = '16px';
-                else nextBtn.style.right = '8px';
+                document.body.classList.remove('panel-expanded');
             }
             function expandPanel() {
                 infoPanel.classList.remove('collapsed');
                 showPanelBtn.classList.remove('visible');
-                if (window.innerWidth > 768) nextBtn.style.right = '136px';
-                else nextBtn.style.right = '8px';
+                document.body.classList.add('panel-expanded');
             }
             closePanelBtn.addEventListener('click', collapsePanel);
             showPanelBtn.addEventListener('click', expandPanel);
-            if (window.innerWidth > 768) nextBtn.style.right = '16px';
-
-            openFullBtn.addEventListener('mouseleave', () => {
-                if (!fullBtnFirstLeave) {
-                    fullBtnFirstLeave = true;
-                    openFullBtn.classList.add('hidden-default');
-                }
-            });
-            openFullBtn.addEventListener('click', () => {
-                if (currentIndex < 0 || !imagesMeta[currentIndex]?.loaded) {
-                    return;
-                }
-                const img = imagesMeta[currentIndex];
-                window.open(BASE_PATH + 'photo.html?img=' + encodeURIComponent(img.name), '_self', 'noopener');
-            });
-
-            currentIndicator.addEventListener('mouseleave', () => {
-                if (!currentIndicatorFirstLeave) {
-                    currentIndicatorFirstLeave = true;
-                    currentIndicator.classList.add('hidden-default');
-                }
-            });
+            document.body.classList.remove('panel-expanded');
 
             function updateLoadingIndicator() {
                 loadingText.textContent = `${loadedCount} / ${totalCount}`;
-                if (loadedCount >= totalCount) {
-                    loadingIndicator.classList.add('hidden');
-                } else {
-                    loadingIndicator.classList.remove('hidden');
-                }
+                loadingIndicator.classList.toggle('hidden', loadedCount >= totalCount);
             }
+            // function updateCurrentIndicator() {
+            //     currentIndicator.textContent = currentIndex >= 0 ? `${currentIndex + 1} / ${totalCount}` : `— / ${totalCount}`;
+            // }
+            updateLoadingIndicator();
+            // updateCurrentIndicator();
 
-            function updateCurrentIndicator() {
-                if (currentIndex >= 0) {
-                    currentIndicator.textContent = `${currentIndex + 1} / ${totalCount}`;
-                } else {
-                    currentIndicator.textContent = `— / ${totalCount}`;
-                }
+            function createThumbnail(index, thumbUrl) {
+                const div = document.createElement('div');
+                div.className = 'thumb-item' + (index === currentIndex ? ' active' : '');
+                const img = document.createElement('img');
+                img.src = thumbUrl;
+                img.alt = FILE_LIST[index];
+                img.loading = 'lazy';
+                img.onerror = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 72; canvas.height = 72;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(0, 0, 72, 72);
+                    ctx.fillStyle = '#aaa';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('⏳', 36, 40);
+                    div.innerHTML = '';
+                    div.appendChild(canvas);
+                };
+                div.appendChild(img);
+                div.addEventListener('click', () => {
+                    if (imagesLoaded[index]) showImage(index);
+                });
+                return div;
             }
 
             function renderThumbnails() {
-                console.log('[Gallery] Рендер миниатюр');
                 thumbList.innerHTML = '';
-                imagesMeta.forEach((meta, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'thumb-item' + (idx === currentIndex ? ' active' : '');
-                    if (meta.loaded && meta.thumbUrl) {
-                        const img = document.createElement('img');
-                        img.src = meta.thumbUrl;
-                        img.alt = meta.name;
-                        img.loading = 'lazy';
-                        img.decoding = 'async';
-                        div.appendChild(img);
-                        div.addEventListener('click', () => {
-                            if (meta.loaded) showImage(idx);
-                        });
-                    } else {
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'placeholder';
-                        placeholder.innerHTML = '⏳';
-                        div.appendChild(placeholder);
-                    }
-                    thumbList.appendChild(div);
-                });
-            }
-
-            async function loadSingleFile(index) {
-                const name = FILE_LIST[index];
-                console.log(`[Gallery] Начало загрузки файла ${index}: ${name}`);
-                const fullUrl = PHOTO_DIR + name;
-                const thumbUrl = THUMB_DIR + name.replace(/\.[^.]+$/, '') + '_thumb.jpg';
-                let size = null;
-                let blobUrl = fullUrl;
-
-                try {
-                    const response = await fetch(fullUrl);
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        size = blob.size;
-                        blobUrl = URL.createObjectURL(blob);
-                        console.log(`[Gallery] Файл ${name} загружен, размер: ${size} байт`);
-                    } else {
-                        console.warn(`[Gallery] fetch вернул статус ${response.status} для ${name}`);
-                    }
-                } catch (e) {
-                    console.warn(`[Gallery] fetch не удался для ${name}`, e);
+                for (let i = 0; i < totalCount; i++) {
+                    const thumbUrl = THUMB_DIR + FILE_LIST[i].replace(/\.[^.]+$/, '') + '_thumb.jpg';
+                    thumbList.appendChild(createThumbnail(i, thumbUrl));
                 }
+            }
+            renderThumbnails();
 
-                const img = new Image();
-                img.src = blobUrl;
-                await new Promise((resolve, reject) => {
+            function preloadImage(index) {
+                if (imagesLoaded[index]) return Promise.resolve();
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.src = PHOTO_DIR + FILE_LIST[index];
                     img.onload = () => {
+                        if (!imagesLoaded[index]) {
+                            imagesLoaded[index] = true;
+                            loadedCount++;
+                            updateLoadingIndicator();
+                            if (index === currentIndex) {
+                                showImage(index);
+                            } else if (currentIndex === -1 && loadedCount === 1) {
+                                currentIndex = index;
+                                showImage(index);
+                            }
+                        }
                         resolve();
                     };
-                    img.onerror = () => reject(new Error(`Не удалось загрузить ${name}`));
+                    img.onerror = () => {
+                        if (!imagesLoaded[index]) {
+                            imagesLoaded[index] = true; // чтобы не зависало
+                            loadedCount++;
+                            updateLoadingIndicator();
+                        }
+                        resolve();
+                    };
                 });
-
-                let thumbSrc = thumbUrl;
-                try {
-                    const testImg = new Image();
-                    await new Promise((resolve, reject) => {
-                        testImg.onload = resolve;
-                        testImg.onerror = reject;
-                        testImg.src = thumbUrl;
-                    });
-                    console.log(`[Gallery] Миниатюра для ${name} найдена по пути ${thumbUrl}`);
-                } catch (e) {
-                    console.log(`[Gallery] Миниатюра отсутствует, создаём из оригинала для ${name}`);
-                    const canvas = document.createElement('canvas');
-                    const size = 72;
-                    canvas.width = size; canvas.height = size;
-                    const ctx = canvas.getContext('2d');
-                    const ratio = Math.min(size / img.width, size / img.height);
-                    const w = img.width * ratio, h = img.height * ratio;
-                    ctx.fillStyle = '#1a1a1a';
-                    ctx.fillRect(0, 0, size, size);
-                    ctx.drawImage(img, (size - w)/2, (size - h)/2, w, h);
-                    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.7));
-                    thumbSrc = URL.createObjectURL(blob);
-                }
-
-                imagesMeta[index] = {
-                    name,
-                    loaded: true,
-                    fullUrl: blobUrl,
-                    thumbUrl: thumbSrc,
-                    size,
-                    width: img.naturalWidth,
-                    height: img.naturalHeight
-                };
-
-                const preloadLink = document.createElement('link');
-                preloadLink.rel = 'prefetch';
-                preloadLink.href = blobUrl;
-                document.head.appendChild(preloadLink);
-
-                loadedCount++;
-                updateLoadingIndicator();
-                renderThumbnails();
-
-                if (currentIndex === index && imagesMeta[index].loaded) {
-                    console.log(`[Gallery] Текущее изображение ${index} загружено, показываем`);
-                    showImage(index);
-                }
-                if (currentIndex === -1 && loadedCount === 1) {
-                    currentIndex = 0;
-                    showImage(0);
-                }
             }
 
-            async function loadAllSequentially() {
-                console.log('[Gallery] Начинаем последовательную загрузку всех изображений');
+            function getPriorityOrder(center) {
                 const order = [];
-                if (startIndex >= 0) {
-                    order.push(startIndex);
+                const used = new Set();
+                if (center >= 0 && center < totalCount) {
+                    order.push(center);
+                    used.add(center);
+                }
+                for (let offset = 1; offset < totalCount; offset++) {
+                    const next = center + offset;
+                    const prev = center - offset;
+                    if (next < totalCount && !used.has(next)) {
+                        order.push(next);
+                        used.add(next);
+                    }
+                    if (prev >= 0 && !used.has(prev)) {
+                        order.push(prev);
+                        used.add(prev);
+                    }
                 }
                 for (let i = 0; i < totalCount; i++) {
-                    if (i !== startIndex) order.push(i);
+                    if (!used.has(i)) order.push(i);
                 }
-
-                for (const i of order) {
-                    try {
-                        await loadSingleFile(i);
-                    } catch (e) {
-                        console.error(`[Gallery] Ошибка при загрузке файла ${i}:`, e);
-                        loadedCount++;
-                        updateLoadingIndicator();
-                    }
-                }
-                updateLoadingIndicator();
-                updateCurrentIndicator();
-                if (currentIndex >= 0) {
-                    imageCounter.textContent = `${currentIndex+1} / ${totalCount}`;
-                }
-                console.log('[Gallery] Загрузка всех изображений завершена');
+                return order;
             }
 
-            // function showImage(index) {
-            //     if (index < 0 || index >= imagesMeta.length) {
-            //         console.warn('[Gallery] Некорректный индекс:', index);
-            //         return;
-            //     }
-            //     const meta = imagesMeta[index];
-            //     if (!meta.loaded) {
-            //         return;
-            //     }
-            //     currentIndex = index;
-            //     mainImage.classList.remove('loaded');
-            //     mainImage.src = meta.thumbUrl;
-            //     console.log(`[Gallery] Показана миниатюра для ${meta.name}`);
-            //     const fullImg = new Image();
-            //     fullImg.onload = () => {
-            //         console.log(`[Gallery] Полноразмерное изображение ${meta.name} загружено и отображается`);
-            //         mainImage.src = meta.fullUrl;
-            //         mainImage.classList.add('loaded');
-            //     };
-            //     fullImg.src = meta.fullUrl;
-            //     updateThumbActive();
-            //     imageCounter.textContent = `${index + 1} / ${totalCount}`;
-            //     updateCurrentIndicator();
+            async function preloadWithConcurrency(priorityList, concurrency = 3) {
+                const queue = [...priorityList];
+                let inProgress = 0;
+                const results = [];
 
-            //     const items = document.querySelectorAll('.thumb-item');
-            //     if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                async function worker() {
+                    while (queue.length > 0) {
+                        const index = queue.shift();
+                        if (imagesLoaded[index]) continue;
+                        inProgress++;
+                        await preloadImage(index);
+                        inProgress--;
+                    }
+                }
 
-            //     const newUrl = window.location.pathname + '?img=' + encodeURIComponent(meta.name);
-            //     history.replaceState(null, '', newUrl);
-            // }
-            
+                const workers = [];
+                for (let i = 0; i < concurrency; i++) {
+                    workers.push(worker());
+                }
+                await Promise.all(workers);
+            }
+
+            async function startPreloading() {
+                const center = currentIndex >= 0 ? currentIndex : 0;
+                if (!imagesLoaded[center]) {
+                    await preloadImage(center);
+                }
+                const priority = getPriorityOrder(center).filter(i => i !== center && !imagesLoaded[i]);
+                preloadWithConcurrency(priority, 3);
+            }
+
             function showImage(index) {
-                if (index < 0 || index >= imagesMeta.length) {
-                    console.warn('[Gallery] Некорректный индекс:', index);
-                    return;
-                }
-                const meta = imagesMeta[index];
-                if (!meta.loaded) {
-                    return;
-                }
+                if (!imagesLoaded[index]) return;
                 currentIndex = index;
 
-                const fullImg = new Image();
-                fullImg.onload = () => {
-                    mainImage.src = meta.fullUrl;
-                    if (!mainImage.classList.contains('loaded')) {
-                        mainImage.classList.add('loaded');
-                    }
-                    console.log(`[Gallery] Полноразмерное изображение ${meta.name} отображено`);
+                mainImage.classList.remove('loaded');
+                mainImage.src = PHOTO_DIR + FILE_LIST[index];
+                const tempImg = new Image();
+                tempImg.src = mainImage.src;
+                tempImg.onload = () => {
+                    mainImage.classList.add('loaded');
                 };
-                fullImg.src = meta.fullUrl;
+                tempImg.onerror = () => {
+                    mainImage.classList.add('loaded');
+                };
 
                 updateThumbActive();
                 imageCounter.textContent = `${index + 1} / ${totalCount}`;
-                updateCurrentIndicator();
+                // updateCurrentIndicator();
 
-                const items = document.querySelectorAll('.thumb-item');
-                if (items[index]) items[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                const thumb = document.querySelector(`.thumb-item:nth-child(${index + 1})`);
+                if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 
-                const newUrl = window.location.pathname + '?img=' + encodeURIComponent(meta.name);
+                const newUrl = window.location.pathname + '?img=' + encodeURIComponent(FILE_LIST[index]);
                 history.replaceState(null, '', newUrl);
             }
 
@@ -567,64 +447,41 @@
             }
 
             function nextImage() {
-                if (totalCount === 0) return;
-                let nextIdx = (currentIndex + 1) % totalCount;
+                let next = currentIndex;
                 for (let i = 0; i < totalCount; i++) {
-                    if (imagesMeta[nextIdx]?.loaded) break;
-                    nextIdx = (nextIdx + 1) % totalCount;
+                    next = (next + 1) % totalCount;
+                    if (imagesLoaded[next]) {
+                        showImage(next);
+                        return;
+                    }
                 }
-                if (imagesMeta[nextIdx]?.loaded) showImage(nextIdx);
-                // else console.warn('[Gallery] Нет загруженного следующего изображения');
             }
             function prevImage() {
-                if (totalCount === 0) return;
-                let prevIdx = (currentIndex - 1 + totalCount) % totalCount;
+                let prev = currentIndex;
                 for (let i = 0; i < totalCount; i++) {
-                    if (imagesMeta[prevIdx]?.loaded) break;
-                    prevIdx = (prevIdx - 1 + totalCount) % totalCount;
+                    prev = (prev - 1 + totalCount) % totalCount;
+                    if (imagesLoaded[prev]) {
+                        showImage(prev);
+                        return;
+                    }
                 }
-                if (imagesMeta[prevIdx]?.loaded) showImage(prevIdx);
-                // else console.warn('[Gallery] Нет загруженного предыдущего изображения');
             }
 
             prevBtn.addEventListener('click', prevImage);
             nextBtn.addEventListener('click', nextImage);
             document.addEventListener('keydown', e => {
-                if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    prevImage();
-                }
-                if (e.key === 'ArrowRight') {
-                    e.preventDefault();
+                if (e.key === 'ArrowLeft') { e.preventDefault(); prevImage(); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); nextImage(); }
+            });
 
-                    nextImage();
+            openFullBtn.addEventListener('click', () => {
+                if (currentIndex >= 0 && imagesLoaded[currentIndex]) {
+                    location.href = BASE_PATH + 'photo.html?img=' + encodeURIComponent(FILE_LIST[currentIndex]);
                 }
             });
 
-            // let touchStartX = 0;
-            // document.querySelector('.viewer').addEventListener('touchstart', e => {
-            //     touchStartX = e.changedTouches[0].screenX;
-            // }, { passive: true });
-            // document.querySelector('.viewer').addEventListener('touchend', e => {
-            //     const delta = e.changedTouches[0].screenX - touchStartX;
-            //     if (Math.abs(delta) > 50) delta > 0 ? prevImage() : nextImage();
-            // });
+            startPreloading();
 
-            renderThumbnails();
-            updateCurrentIndicator();
-            updateLoadingIndicator();
-            loadAllSequentially();
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register(BASE_PATH + 'sw.js')
-                    .then(registration => {
-                        console.log('[Gallery] Service Worker зарегистрирован:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.error('[Gallery] Ошибка регистрации Service Worker:', error);
-                    });
-                });
-            }
         })();
     </script>
 </body>
