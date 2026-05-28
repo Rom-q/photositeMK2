@@ -526,14 +526,14 @@
                 if (e.key === 'ArrowRight') { e.preventDefault(); nextImage(); }
             });
 
-            let touchStartX = 0;
-            document.querySelector('.viewer').addEventListener('touchstart', e => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
-            document.querySelector('.viewer').addEventListener('touchend', e => {
-                const delta = e.changedTouches[0].screenX - touchStartX;
-                if (Math.abs(delta) > 50) delta > 0 ? prevImage() : nextImage();
-            });
+            // let touchStartX = 0;
+            // document.querySelector('.viewer').addEventListener('touchstart', e => {
+            //     touchStartX = e.changedTouches[0].screenX;
+            // }, { passive: true });
+            // document.querySelector('.viewer').addEventListener('touchend', e => {
+            //     const delta = e.changedTouches[0].screenX - touchStartX;
+            //     if (Math.abs(delta) > 50) delta > 0 ? prevImage() : nextImage();
+            // });
 
             renderThumbnails();
             updateCurrentIndicator();
